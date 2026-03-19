@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Alou - لوحة الإدارة</title>
+    <style>
+      body { font-family: 'Cairo', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #F8FAFC; color: #1E293B; text-align: center; padding: 1rem; }
+      a { color: #F5B800; font-weight: bold; }
+    </style>
+  </head>
+  <body>
+    <div>
+      <p>جاري التوجيه إلى لوحة الإدارة...</p>
+      <p><a href="/admin">انقر هنا إذا لم يتم التوجيه</a></p>
+    </div>
+    <script>
+      var path = window.location.pathname.replace(/admin\.html$/i, '') || '/';
+      if (!path.endsWith('/')) path += '/';
+      window.location.replace(window.location.origin + path + 'admin');
+    </script>
+  </body>
+</html>

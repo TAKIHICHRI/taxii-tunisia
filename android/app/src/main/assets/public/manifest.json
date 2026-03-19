@@ -1,0 +1,13 @@
+{
+  "name": "Alou - Taxi",
+  "short_name": "Alou",
+  "description": "Alou - تطبيق التاكسي الأول في القصرين، تونس | Taxi app in Tunisia",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F172A",
+  "theme_color": "#F5B800",
+  "orientation": "portrait-primary",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": []
+}

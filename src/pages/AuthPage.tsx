@@ -1,32 +1,94 @@
-import React, { useState, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, ArrowRight, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import { useAppStore } from '../store';
-import { sendOTP, verifyOTP } from '../services/auth';
-import type { ConfirmationResult } from 'firebase/auth';
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { auth } from '../firebase';
 
 const TUNISIA_PREFIX = '+216';
 const OTP_LENGTH = 6;
 
-const AuthPage: React.FC<{ mode?: 'login' | 'signup' }> = ({ mode = 'login' }) => {
+const AuthPage: React.FC<{ mode: 'login' | 'signup' }> = ({ mode }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { setUser, setAuthenticated, addToast } = useAppStore();
-  const confirmationResultRef = useRef<ConfirmationResult | null>(null);
 
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [isSending, setIsSending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
-  const fullPhone = phone.startsWith('+') ? phone : `${TUNISIA_PREFIX} ${phone.replace(/\D/g, '').slice(0, 8)}`;
-  const phoneDigits = phone.replace(/\D/g, '');
-  const isValidPhone = phoneDigits.length >= 8;
+  // ✅ مرجع واحد للـ recaptcha و confirmation
+  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
+  const confirmationResultRef = useRef<any>(null);
+
+  const fullPhone = `${TUNISIA_PREFIX}${phone}`;
+  const isValidPhone = phone.length === 8;
+
+  // ✅ تنظيف الـ recaptcha عند مغادرة الصفحة
+  useEffect(() => {
+    return () => {
+      if (recaptchaVerifierRef.current) {
+        recaptchaVerifierRef.current.clear();
+        recaptchaVerifierRef.current = null;
+      }
+    };
+  }, []);
+
+  // ✅ Cooldown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((c) => c - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  // ✅ إنشاء RecaptchaVerifier بشكل صحيح
+  const setupRecaptcha = (): Promise<RecaptchaVerifier> => {
+    return new Promise((resolve, reject) => {
+      if (!auth) {
+        reject(new Error('Firebase not initialized'));
+        return;
+      }
+
+      // امسح القديم إن وجد
+      if (recaptchaVerifierRef.current) {
+        try { recaptchaVerifierRef.current.clear(); } catch {}
+        recaptchaVerifierRef.current = null;
+      }
+
+      // تأكد أن الـ div موجود
+      const container = document.getElementById('recaptcha-container');
+      if (!container) {
+        reject(new Error('recaptcha container not found'));
+        return;
+      }
+
+      try {
+        const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: () => {},
+          'expired-callback': () => {
+            setError('انتهت صلاحية التحقق، حاول مجدداً');
+          },
+        });
+
+        verifier.render().then(() => {
+          recaptchaVerifierRef.current = verifier;
+          resolve(verifier);
+        }).catch(reject);
+
+      } catch (e) {
+        reject(e);
+      }
+    });
+  };
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,44 +97,45 @@ const AuthPage: React.FC<{ mode?: 'login' | 'signup' }> = ({ mode = 'login' }) =
     setError(null);
 
     try {
-      // إضافة reCAPTCHA container
-      const container = document.getElementById('recaptcha-container');
-      if (!container) {
-        const recaptchaDiv = document.createElement('div');
-        recaptchaDiv.id = 'recaptcha-container';
-        recaptchaDiv.style.display = 'none';
-        document.body.appendChild(recaptchaDiv);
-      }
-
-      const confirmationResult = await sendOTP(fullPhone);
-      confirmationResultRef.current = confirmationResult;
-      
+      const verifier = await setupRecaptcha();
+      const result = await signInWithPhoneNumber(auth!, fullPhone, verifier);
+      confirmationResultRef.current = result;
       setStep('otp');
       setResendCooldown(60);
-      let count = 60;
-      const interval = setInterval(() => {
-        count--;
-        setResendCooldown(count);
-        if (count <= 0) clearInterval(interval);
-      }, 1000);
+      addToast('تم إرسال رمز التحقق', 'success');
     } catch (err: any) {
       console.error('OTP send error:', err);
-      setError(err.message || 'فشل في إرسال رمز التحقق');
-      addToast('فشل في إرسال رمز التحقق', 'error');
+      if (err.code === 'auth/invalid-phone-number') {
+        setError('رقم الهاتف غير صحيح');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('كثير من المحاولات، انتظر قليلاً');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('تسجيل الدخول بالهاتف غير مفعّل في Firebase');
+      } else {
+        setError('فشل إرسال الرمز، تحقق من إعدادات Firebase');
+      }
+      // امسح الـ recaptcha عند الخطأ
+      if (recaptchaVerifierRef.current) {
+        try { recaptchaVerifierRef.current.clear(); } catch {}
+        recaptchaVerifierRef.current = null;
+      }
     } finally {
       setIsSending(false);
     }
   };
 
   const handleOtpChange = (index: number, value: string) => {
+    // دعم اللصق
     if (value.length > 1) {
-      const digits = value.replace(/\D/g, '').slice(0, OTP_LENGTH).split('');
+      const digits = value.replace(/\D/g, '').slice(0, OTP_LENGTH);
       const newOtp = [...otp];
-      digits.forEach((d, i) => {
+      digits.split('').forEach((d, i) => {
         if (index + i < OTP_LENGTH) newOtp[index + i] = d;
       });
       setOtp(newOtp);
-      const next = document.querySelector<HTMLInputElement>(`input[name="otp-${Math.min(index + digits.length, OTP_LENGTH - 1)}"]`);
+      const next = document.querySelector<HTMLInputElement>(
+        `input[name="otp-${Math.min(index + digits.length, OTP_LENGTH - 1)}"]`
+      );
       next?.focus();
       return;
     }
@@ -103,15 +166,11 @@ const AuthPage: React.FC<{ mode?: 'login' | 'signup' }> = ({ mode = 'login' }) =
     setError(null);
 
     try {
-      if (!confirmationResultRef.current) {
-        throw new Error('لم يتم إرسال رمز التحقق');
-      }
+      if (!confirmationResultRef.current) throw new Error('لم يتم إرسال رمز التحقق');
+      const userCredential = await confirmationResultRef.current.confirm(otpString);
 
-      const userCredential = await verifyOTP(confirmationResultRef.current, otpString);
-      
-      // نجاح تسجيل الدخول
       setUser({
-        id: userCredential.uid,
+        id: userCredential.user.uid,
         name: 'مستخدم Alou',
         phone: fullPhone,
         rating: 5.0,
@@ -121,27 +180,38 @@ const AuthPage: React.FC<{ mode?: 'login' | 'signup' }> = ({ mode = 'login' }) =
         loyaltyPoints: 0,
       });
       setAuthenticated(true);
-      addToast('مرحباً بك في Alou!', 'success');
+      addToast('مرحباً بك في Alou! 🚕', 'success');
       navigate('/home');
     } catch (err: any) {
-      console.error('OTP verification error:', err);
-      setError('رمز التحقق غير صحيح');
-      addToast('رمز التحقق غير صحيح', 'error');
+      console.error('OTP verify error:', err);
+      if (err.code === 'auth/invalid-verification-code') {
+        setError('رمز التحقق غير صحيح');
+      } else if (err.code === 'auth/code-expired') {
+        setError('انتهت صلاحية الرمز، أرسل رمزاً جديداً');
+        setStep('phone');
+        setOtp(Array(OTP_LENGTH).fill(''));
+      } else {
+        setError('خطأ في التحقق، حاول مجدداً');
+      }
     } finally {
       setIsVerifying(false);
     }
   };
 
-  const handleResend = async () => {
+  const handleResend = () => {
     if (resendCooldown > 0 || !phone) return;
-    await handleSendOtp(new Event('submit') as any);
+    setStep('phone');
+    setOtp(Array(OTP_LENGTH).fill(''));
+    setError(null);
   };
 
   return (
     <div className="min-h-dvh bg-white dark:bg-dark-900 safe-top safe-bottom flex flex-col">
-      {/* Firebase reCAPTCHA container */}
-      <div id="recaptcha-container"></div>
-      
+
+      {/* ✅ هذا الـ div مهم جداً — لا تحذفه */}
+      <div id="recaptcha-container" />
+
+      {/* Header */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary-400 via-primary-500 to-primary-600" />
         <div className="absolute inset-0 opacity-10">
@@ -172,6 +242,7 @@ const AuthPage: React.FC<{ mode?: 'login' | 'signup' }> = ({ mode = 'login' }) =
         </div>
       </div>
 
+      {/* Form */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -205,16 +276,14 @@ const AuthPage: React.FC<{ mode?: 'login' | 'signup' }> = ({ mode = 'login' }) =
                   type="tel"
                   inputMode="numeric"
                   placeholder="98 000 000"
-                  className="input-field ps-[4.5rem] text-left dark:bg-dark-700 dark:border-dark-600 dark:text-white dark:placeholder:text-dark-400"
-                  value={phone.replace(/^\+216\s?/, '')}
+                  className="input-field ps-[4.5rem] text-left dark:bg-dark-700 dark:border-dark-600 dark:text-white"
+                  value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 8))}
                   dir="ltr"
                   maxLength={8}
                 />
               </div>
-              <p className="text-dark-400 text-xs mt-2 dark:text-dark-400">
-                رقم الهاتف التونسي (8 أرقام بعد +216)
-              </p>
+              <p className="text-dark-400 text-xs mt-2">رقم الهاتف التونسي (8 أرقام بعد +216)</p>
               <button
                 type="submit"
                 disabled={!isValidPhone || isSending}
@@ -245,7 +314,7 @@ const AuthPage: React.FC<{ mode?: 'login' | 'signup' }> = ({ mode = 'login' }) =
               )}
               <button
                 type="button"
-                onClick={() => { setStep('phone'); setError(null); }}
+                onClick={() => { setStep('phone'); setError(null); setOtp(Array(OTP_LENGTH).fill('')); }}
                 className="flex items-center gap-2 text-dark-500 dark:text-dark-400 text-sm mb-4"
               >
                 <ArrowLeft size={18} />
@@ -254,7 +323,7 @@ const AuthPage: React.FC<{ mode?: 'login' | 'signup' }> = ({ mode = 'login' }) =
               <p className="text-dark-600 dark:text-dark-300 text-sm mb-4">
                 {t('otpSent')} <strong dir="ltr">{fullPhone}</strong>
               </p>
-              <div className="flex justify-center gap-2 mb-6">
+              <div className="flex justify-center gap-2 mb-6" dir="ltr">
                 {otp.map((digit, i) => (
                   <input
                     key={i}
@@ -268,7 +337,6 @@ const AuthPage: React.FC<{ mode?: 'login' | 'signup' }> = ({ mode = 'login' }) =
                     value={digit}
                     onChange={(e) => handleOtpChange(i, e.target.value)}
                     onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                    dir="ltr"
                   />
                 ))}
               </div>
@@ -282,15 +350,16 @@ const AuthPage: React.FC<{ mode?: 'login' | 'signup' }> = ({ mode = 'login' }) =
               <button
                 type="button"
                 onClick={handleResend}
-                disabled={resendCooldown > 0 || isSending}
+                disabled={resendCooldown > 0}
                 className="w-full mt-4 text-primary-600 dark:text-primary-400 text-sm font-medium disabled:opacity-50"
               >
-                {resendCooldown > 0 ? `${t('resendIn')} ${resendCooldown}s` : t('resendCode')}
+                {resendCooldown > 0 ? `إعادة الإرسال بعد ${resendCooldown}s` : t('resendCode')}
               </button>
             </motion.form>
           )}
         </AnimatePresence>
 
+        {/* Driver apply */}
         <button
           onClick={() => navigate('/driver-apply')}
           className="w-full mt-6 p-4 rounded-2xl border-2 border-dashed border-primary-300 dark:border-primary-600 bg-primary-50/50 dark:bg-primary-900/20 flex items-center justify-between active:scale-[0.98]"
@@ -302,7 +371,7 @@ const AuthPage: React.FC<{ mode?: 'login' | 'signup' }> = ({ mode = 'login' }) =
               <p className="text-dark-400 dark:text-dark-500 text-xs">اكسب دخلاً إضافياً بجدول مرن</p>
             </div>
           </div>
-          <ArrowRight size={16} className="text-primary-600" />
+          <ArrowLeft size={18} className="text-primary-500" />
         </button>
       </motion.div>
     </div>

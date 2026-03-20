@@ -1,6 +1,31 @@
-.vercel
+# Dependencies
 node_modules/
+
+# Build output
 dist/
-*.bat
+
+# Environment variables — سري جداً لا يرفع أبداً
 .env
 .env.local
+.env.production
+.env.*.local
+
+# Android build
+android/app/build/
+android/.gradle/
+android/local.properties
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript cache
+*.tsbuildinfo

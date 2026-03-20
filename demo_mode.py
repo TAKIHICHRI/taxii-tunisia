@@ -1,4 +1,17 @@
-import React, { useState, useEffect } from 'react';
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import os, subprocess
+
+BASE = os.path.dirname(os.path.abspath(__file__))
+
+def write(path, content):
+    full = os.path.join(BASE, path.replace('/', os.sep))
+    os.makedirs(os.path.dirname(full), exist_ok=True)
+    with open(full, 'w', encoding='utf-8') as f:
+        f.write(content)
+    print(f"  [OK] {path}")
+
+write("src/pages/AuthPage.tsx", """import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -67,14 +80,14 @@ const AuthPage: React.FC<{ mode: 'login' | 'signup' }> = () => {
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) {
-      const digits = value.replace(/\D/g, '').slice(0, OTP_LENGTH);
+      const digits = value.replace(/\\D/g, '').slice(0, OTP_LENGTH);
       const newOtp = [...otp];
       digits.split('').forEach((d, i) => { if (index + i < OTP_LENGTH) newOtp[index + i] = d; });
       setOtp(newOtp);
       document.querySelector<HTMLInputElement>(`input[name="otp-${Math.min(index + digits.length, OTP_LENGTH - 1)}"]`)?.focus();
       return;
     }
-    const digit = value.replace(/\D/g, '').slice(-1);
+    const digit = value.replace(/\\D/g, '').slice(-1);
     const newOtp = [...otp]; newOtp[index] = digit; setOtp(newOtp);
     if (digit && index < OTP_LENGTH - 1)
       document.querySelector<HTMLInputElement>(`input[name="otp-${index + 1}"]`)?.focus();
@@ -115,7 +128,7 @@ const AuthPage: React.FC<{ mode: 'login' | 'signup' }> = () => {
                 <span className="absolute top-1/2 -translate-y-1/2 start-12 text-dark-500 font-medium">{TUNISIA_PREFIX}</span>
                 <input type="tel" inputMode="numeric" placeholder="98 000 000"
                   className="input-field ps-[4.5rem] text-left dark:bg-dark-700 dark:border-dark-600 dark:text-white"
-                  value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 8))} dir="ltr" maxLength={8} />
+                  value={phone} onChange={(e) => setPhone(e.target.value.replace(/\\D/g, '').slice(0, 8))} dir="ltr" maxLength={8} />
               </div>
               <p className="text-dark-400 text-xs mt-2">رقم الهاتف التونسي (8 أرقام بعد +216)</p>
               <button type="submit" disabled={!isValidPhone || isSending}
@@ -170,3 +183,19 @@ const AuthPage: React.FC<{ mode: 'login' | 'signup' }> = () => {
 };
 
 export default AuthPage;
+""")
+
+print("\nPushing to GitHub...")
+subprocess.run(["git", "add", "."], cwd=BASE)
+result = subprocess.run(
+    ["git", "commit", "-m", "demo mode - bypass Firebase auth for testing"],
+    cwd=BASE, capture_output=True, text=True
+)
+if "nothing to commit" in result.stdout:
+    print("  Already up to date")
+else:
+    subprocess.run(["git", "push"], cwd=BASE)
+    print("  [OK] Pushed!")
+
+print("\n[DONE] Demo mode active!")
+print("Now: any phone number + any 6 digits = login!")

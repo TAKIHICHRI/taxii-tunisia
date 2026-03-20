@@ -6,13 +6,10 @@ import {
 import { db } from '../firebase';
 import type { User, Ride, DriverApplication } from '../types';
 
-// ── المستخدمون ──────────────────────────────────────────────────────────────
-
 export const saveUser = async (user: User): Promise<void> => {
   if (!db) return;
   await setDoc(doc(db, 'users', user.id), {
-    ...user,
-    updatedAt: serverTimestamp(),
+    ...user, updatedAt: serverTimestamp(),
   }, { merge: true });
 };
 
@@ -27,14 +24,10 @@ export const updateUserProfile = async (uid: string, data: Partial<User>): Promi
   await updateDoc(doc(db, 'users', uid), { ...data, updatedAt: serverTimestamp() });
 };
 
-// ── الرحلات ─────────────────────────────────────────────────────────────────
-
 export const saveRide = async (ride: Ride, userId: string): Promise<void> => {
   if (!db) return;
   await setDoc(doc(db, 'rides', ride.id), {
-    ...ride,
-    userId,
-    createdAt: serverTimestamp(),
+    ...ride, userId, createdAt: serverTimestamp(),
   });
 };
 
@@ -71,16 +64,12 @@ export const updateRideRating = async (rideId: string, rating: number): Promise<
   await updateDoc(doc(db, 'rides', rideId), { rating });
 };
 
-// ── طلبات السائقين ──────────────────────────────────────────────────────────
-
 export const submitDriverApplication = async (
   data: DriverApplication & { userId?: string }
 ): Promise<string> => {
   if (!db) return '';
   const ref = await addDoc(collection(db, 'driverApplications'), {
-    ...data,
-    status: 'pending',
-    createdAt: serverTimestamp(),
+    ...data, status: 'pending', createdAt: serverTimestamp(),
   });
   return ref.id;
 };
@@ -98,21 +87,16 @@ export const updateDriverApplicationStatus = async (
   status: 'pending' | 'approved' | 'rejected'
 ): Promise<void> => {
   if (!db) return;
-  await updateDoc(doc(db, 'driverApplications', id), { status, updatedAt: serverTimestamp() });
+  await updateDoc(doc(db, 'driverApplications', id), {
+    status, updatedAt: serverTimestamp(),
+  });
 };
 
-// ── الإشعارات ────────────────────────────────────────────────────────────────
-
 export const saveNotification = async (
-  userId: string,
-  title: string,
-  body: string,
-  type = 'info'
+  userId: string, title: string, body: string, type = 'info'
 ): Promise<void> => {
   if (!db) return;
   await addDoc(collection(db, 'notifications'), {
-    userId, title, body, type,
-    read: false,
-    createdAt: serverTimestamp(),
+    userId, title, body, type, read: false, createdAt: serverTimestamp(),
   });
 };

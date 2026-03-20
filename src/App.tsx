@@ -12,11 +12,10 @@ import RidesPage from './pages/RidesPage';
 import OffersPage from './pages/OffersPage';
 import ProfilePage from './pages/ProfilePage';
 import DriverApplyPage from './pages/DriverApplyPage';
+import DriverDashboard from './pages/DriverDashboard';
 import AdminPanel from './pages/AdminPanel';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import { useAppStore } from './store';
-import { onAuthChange } from './services/auth';
-import { getUser } from './services/firestore';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { authenticated } = useAppStore();
@@ -32,44 +31,40 @@ function AppContent() {
   const location = useLocation();
   const ADMIN_SLUG = import.meta.env.VITE_ADMIN_SLUG || 'admin';
   const adminPath = `/${ADMIN_SLUG}`;
+  const hideNav = [adminPath, '/driver'].some(p => location.pathname.startsWith(p));
+
   return (
     <>
       <Routes>
         <Route path="/" element={<SplashPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-        <Route path="/login" element={<PublicOnlyRoute><AuthPage mode="login" /></PublicOnlyRoute>} />
+
+        <Route path="/login"  element={<PublicOnlyRoute><AuthPage mode="login"  /></PublicOnlyRoute>} />
         <Route path="/signup" element={<PublicOnlyRoute><AuthPage mode="signup" /></PublicOnlyRoute>} />
-        <Route path="/home" element={<PrivateRoute><HomePage /></PrivateRoute>} />
-        <Route path="/rides" element={<PrivateRoute><RidesPage /></PrivateRoute>} />
-        <Route path="/offers" element={<PrivateRoute><OffersPage /></PrivateRoute>} />
-        <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+
+        <Route path="/home"         element={<PrivateRoute><HomePage        /></PrivateRoute>} />
+        <Route path="/rides"        element={<PrivateRoute><RidesPage       /></PrivateRoute>} />
+        <Route path="/offers"       element={<PrivateRoute><OffersPage      /></PrivateRoute>} />
+        <Route path="/profile"      element={<PrivateRoute><ProfilePage     /></PrivateRoute>} />
         <Route path="/driver-apply" element={<PrivateRoute><DriverApplyPage /></PrivateRoute>} />
-        <Route path={adminPath} element={<AdminPanel />} />
-        <Route path="/admin" element={<Navigate to="/" replace />} />
+
+        {/* لوحة السائق — مسار منفصل */}
+        <Route path="/driver" element={<DriverDashboard />} />
+
+        <Route path={adminPath}    element={<AdminPanel />} />
+        <Route path="/admin"       element={<Navigate to="/" replace />} />
         <Route path="/admin-panel" element={<Navigate to="/" replace />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*"            element={<Navigate to="/" replace />} />
       </Routes>
-      {location.pathname !== adminPath && !location.pathname.startsWith('/admin') && <BottomNav />}
+      {!hideNav && <BottomNav />}
     </>
   );
 }
 
 export default function App() {
   const { i18n } = useTranslation();
-  const { language, isDarkMode, setUser, setAuthenticated, logout } = useAppStore();
-
-  useEffect(() => {
-    const unsub = onAuthChange(async (firebaseUser) => {
-      if (firebaseUser) {
-        const userData = await getUser(firebaseUser.uid);
-        if (userData) { setUser(userData); setAuthenticated(true); }
-      } else {
-        logout();
-      }
-    });
-    return unsub;
-  }, []);
+  const { language, isDarkMode } = useAppStore();
 
   useEffect(() => {
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';

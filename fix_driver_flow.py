@@ -1,4 +1,17 @@
-import React, { useState, useEffect } from 'react';
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import os, subprocess
+
+BASE = os.path.dirname(os.path.abspath(__file__))
+
+def write(path, content):
+    full = os.path.join(BASE, path.replace('/', os.sep))
+    os.makedirs(os.path.dirname(full), exist_ok=True)
+    with open(full, 'w', encoding='utf-8') as f:
+        f.write(content)
+    print(f"  [OK] {path}")
+
+write("src/pages/DriverDashboard.tsx", """import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle, XCircle, Clock, Wifi, WifiOff, Car,
@@ -433,3 +446,28 @@ const DriverDashboard: React.FC = () => {
 };
 
 export default DriverDashboard;
+""")
+
+print("\nPushing to GitHub...")
+subprocess.run(["git", "add", "."], cwd=BASE)
+result = subprocess.run(
+    ["git", "commit", "-m", "redesign driver flow: apply -> pending -> activate code -> online"],
+    cwd=BASE, capture_output=True, text=True
+)
+if "nothing to commit" in result.stdout:
+    print("  Already up to date")
+else:
+    subprocess.run(["git", "push"], cwd=BASE)
+    print("  [OK] Pushed!")
+
+print("""
+[DONE] Driver flow redesigned!
+
+New flow:
+  1. Driver opens /driver
+  2. Fills their info → sends to admin
+  3. Waits for approval (pending screen)
+  4. Admin approves in /admin → generates code
+  5. Driver enters code → goes ONLINE
+  6. Receives ride requests → accept or reject
+""")

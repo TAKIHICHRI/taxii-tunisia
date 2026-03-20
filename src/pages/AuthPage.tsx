@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,27 +31,27 @@ const AuthPage: React.FC<{ mode: 'login' | 'signup' }> = () => {
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
-  // ✅ DEMO MODE — أي رقم يقبل
+  // âœ… DEMO MODE â€” Ø£ÙŠ Ø±Ù‚Ù… ÙŠÙ‚Ø¨Ù„
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValidPhone || isSending) return;
     setIsSending(true);
-    await new Promise(r => setTimeout(r, 1000)); // محاكاة الإرسال
+    await new Promise(r => setTimeout(r, 1000)); // Ù…Ø­Ø§ÙƒØ§Ø© Ø§Ù„Ø¥Ø±Ø³Ø§Ù„
     setStep('otp');
     setResendCooldown(60);
-    addToast('تم إرسال رمز التحقق ✓', 'success');
+    addToast('ØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø±Ù…Ø² Ø§Ù„ØªØ­Ù‚Ù‚ âœ“', 'success');
     setIsSending(false);
   };
 
-  // ✅ DEMO MODE — أي كود يقبل
+  // âœ… DEMO MODE â€” Ø£ÙŠ ÙƒÙˆØ¯ ÙŠÙ‚Ø¨Ù„
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canVerify || isVerifying) return;
     setIsVerifying(true);
-    await new Promise(r => setTimeout(r, 800)); // محاكاة التحقق
+    await new Promise(r => setTimeout(r, 800)); // Ù…Ø­Ø§ÙƒØ§Ø© Ø§Ù„ØªØ­Ù‚Ù‚
     setUser({
       id: 'demo_' + phone,
-      name: 'مستخدم Alou',
+      name: 'Ù…Ø³ØªØ®Ø¯Ù… Alou',
       phone: fullPhone,
       rating: 5.0,
       totalRides: 0,
@@ -60,7 +60,7 @@ const AuthPage: React.FC<{ mode: 'login' | 'signup' }> = () => {
       loyaltyPoints: 0,
     });
     setAuthenticated(true);
-    addToast('مرحباً بك في Alou! 🚕', 'success');
+    addToast('Ù…Ø±Ø­Ø¨Ø§Ù‹ Ø¨Ùƒ ÙÙŠ Alou! ðŸš•', 'success');
     navigate('/home');
     setIsVerifying(false);
   };
@@ -117,7 +117,7 @@ const AuthPage: React.FC<{ mode: 'login' | 'signup' }> = () => {
                   className="input-field ps-[4.5rem] text-left dark:bg-dark-700 dark:border-dark-600 dark:text-white"
                   value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 8))} dir="ltr" maxLength={8} />
               </div>
-              <p className="text-dark-400 text-xs mt-2">رقم الهاتف التونسي (8 أرقام بعد +216)</p>
+              <p className="text-dark-400 text-xs mt-2">Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ Ø§Ù„ØªÙˆÙ†Ø³ÙŠ (8 Ø£Ø±Ù‚Ø§Ù… Ø¨Ø¹Ø¯ +216)</p>
               <button type="submit" disabled={!isValidPhone || isSending}
                 className="btn-primary w-full mt-6 flex items-center justify-center gap-2 disabled:opacity-50">
                 {isSending ? <Loader2 size={20} className="animate-spin" /> : t('sendCode')}
@@ -132,7 +132,7 @@ const AuthPage: React.FC<{ mode: 'login' | 'signup' }> = () => {
                 <ArrowLeft size={18} />{t('back')}
               </button>
               <p className="text-dark-600 dark:text-dark-300 text-sm mb-1">{t('otpSent')} <strong dir="ltr">{fullPhone}</strong></p>
-              <p className="text-primary-500 text-xs mb-4 font-medium">أدخل أي 6 أرقام للدخول</p>
+              <p className="text-primary-500 text-xs mb-4 font-medium">Ø£Ø¯Ø®Ù„ Ø£ÙŠ 6 Ø£Ø±Ù‚Ø§Ù… Ù„Ù„Ø¯Ø®ÙˆÙ„</p>
               <div className="flex justify-center gap-2 mb-6" dir="ltr">
                 {otp.map((digit, i) => (
                   <input key={i} name={`otp-${i}`} type="text" inputMode="numeric"
@@ -147,19 +147,19 @@ const AuthPage: React.FC<{ mode: 'login' | 'signup' }> = () => {
               </button>
               <button type="button" onClick={() => { if (resendCooldown > 0) return; setStep('phone'); setOtp(Array(OTP_LENGTH).fill('')); }}
                 disabled={resendCooldown > 0} className="w-full mt-4 text-primary-600 text-sm font-medium disabled:opacity-50">
-                {resendCooldown > 0 ? `إعادة الإرسال بعد ${resendCooldown}s` : t('resendCode')}
+                {resendCooldown > 0 ? `Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ø¥Ø±Ø³Ø§Ù„ Ø¨Ø¹Ø¯ ${resendCooldown}s` : t('resendCode')}
               </button>
             </motion.form>
           )}
         </AnimatePresence>
 
-        <button onClick={() => navigate('/driver-apply')}
+        <button onClick={() => navigate('/driver')}
           className="w-full mt-6 p-4 rounded-2xl border-2 border-dashed border-primary-300 bg-primary-50/50 flex items-center justify-between active:scale-[0.98]">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">🚗</span>
+            <span className="text-2xl">ðŸš—</span>
             <div className="text-start">
-              <p className="font-bold text-dark-800 text-sm">كن سائقاً مع Alou</p>
-              <p className="text-dark-400 text-xs">اكسب دخلاً إضافياً بجدول مرن</p>
+              <p className="font-bold text-dark-800 text-sm">ÙƒÙ† Ø³Ø§Ø¦Ù‚Ø§Ù‹ Ù…Ø¹ Alou</p>
+              <p className="text-dark-400 text-xs">Ø§ÙƒØ³Ø¨ Ø¯Ø®Ù„Ø§Ù‹ Ø¥Ø¶Ø§ÙÙŠØ§Ù‹ Ø¨Ø¬Ø¯ÙˆÙ„ Ù…Ø±Ù†</p>
             </div>
           </div>
           <ArrowLeft size={18} className="text-primary-500" />
@@ -170,3 +170,4 @@ const AuthPage: React.FC<{ mode: 'login' | 'signup' }> = () => {
 };
 
 export default AuthPage;
+
